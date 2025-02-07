@@ -1,4 +1,5 @@
 from .puppet import DesktopPuppet
+from urllib.parse import urlencode, urljoin
 from gi.repository import WebKit, Gdk, Gtk,  GLib
 import threading 
 import json
@@ -15,6 +16,8 @@ class Live2DDesktopPuppet(DesktopPuppet):
         self.address = "http://127.0.0.1:8000"
         self.extra_scale_w = 0.56
         self.extra_scale_h = 1
+        self.model = None 
+        self.scale = 1 
 
     def get_gtk_widget(self):
         self.box = Gtk.Box()
@@ -22,7 +25,10 @@ class Live2DDesktopPuppet(DesktopPuppet):
 
     def load_webview(self):
         webview = WebKit.WebView()
-        webview.load_uri(self.address + "?bg=transparent")
+        scale = int(self.scale)/100
+        q = urlencode({"model": self.model, "bg": "transparent", "scale": scale})
+        print(q)
+        webview.load_uri(urljoin(self.address, f"?{q}"))
         webview.set_hexpand(True)
         webview.set_vexpand(True)
         webview.set_background_color(Gdk.RGBA())
@@ -107,6 +113,14 @@ class Live2DDesktopPuppet(DesktopPuppet):
             self.extra_scale_w = settings["extra_scale_w"]
         if "extra_scale_h" in settings:
             self.extra_scale_h = settings["extra_scale_h"]
+        if "model" in settings:
+            self.model = settings["model"]
+        if "scale" in settings:
+            self.scale = settings["scale"]
+        if "extra_w" in settings:
+            self.extra_scale_w = settings["extra_w"]
+        if "extra_h" in settings:
+            self.extra_scale_h = settings["extra_h"]
         if "address" in settings:
             self.address = settings["address"]
             GLib.idle_add(self.change_address)

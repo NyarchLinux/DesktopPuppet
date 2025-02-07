@@ -1,13 +1,16 @@
+from os.path import isfile
 import threading
 import requests
+import signal
 import os
 import subprocess
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pydub import AudioSegment
 from time import sleep
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin
 from gi.repository import Gtk
 from livepng import LivePNG
+from .utility.system import get_spawn_command
 
 from .handlers.avatar import AvatarHandler
 from .handlers.tts import TTSHandler
@@ -28,13 +31,15 @@ class NyarchDesktopPuppet(NewelleExtension):
 class Live2DPuppetAvatarHandler(AvatarHandler):
     key = "puppet"
     base_url = "http://127.0.0.1:42943"
-
+    lockfile = None
     def __init__(self, settings, path: str):
         super().__init__(settings, path)
         self._wait_js = threading.Event()
         self._expressions_raw = []
         self.webview_path = os.path.join(path, "avatars", "live2d", "web")
+        self.puppet_path = os.path.join(path, "avatars", "live2d", "DesktopPuppet")
         self.models_dir = os.path.join(self.webview_path, "models")
+        self._puppet_process = None
 
     def get_available_models(self): 
         file_list = []
@@ -58,6 +63,23 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
                 "folder": os.path.abspath(self.models_dir)
             },
             {
+                "key": "update_model",
+                "title": "Update Puppet Program",
+                "description": "Update Puppet program",
+                "type": "button",
+                "default": "",
+                "label": "Update",
+                "callback": self.update_puppet,
+
+            },
+            {
+                "key": "start_window_server",
+                "title": "Automatically run puppet",
+                "description": "Automatically run puppet window server",
+                "type": "toggle",
+                "default": True
+            },
+            {
              "key": "fps",
                 "title": _("Lipsync Framerate"),
                 "description": _("Maximum amount of frames to generate for lipsync"),
@@ -76,17 +98,50 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
                 "max": 300,
                 "default": 100,
                 "round-digits": 0
+            },
+            {
+                "key": "extra_w",
+                "title": _("Extra Scaling Width"),
+                "description": _("Extra scaling width for the input. Make it smaller than one if the input area takes too much width"),
+                "type": "range",
+                "min": 0,
+                "max": 2,
+                "default": 0.56,
+                "round-digits": 2
+            },
+            {
+                "key": "extra_h",
+                "title": _("Extra Scaling Height"),
+                "description": _("Extra scaling height for the input. Make it smaller than one if the input area takes too much height"),
+                "type": "range",
+                "min": 0,
+                "max": 2,
+                "default": 1,
+                "round-digits": 2
             }
         ]
     def is_installed(self) -> bool:
-        return os.path.isdir(self.webview_path)
+        return os.path.isdir(self.webview_path) and os.path.isdir(self.puppet_path)
 
     def install(self):
-        subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", self.webview_path])
-        subprocess.check_output(["wget", "-P", os.path.join(self.models_dir), "http://mirror.nyarchlinux.moe/Arch.tar.xz"])
-        subprocess.check_output(["tar", "-Jxf", os.path.join(self.models_dir, "Arch.tar.xz"), "-C", self.models_dir])
-        subprocess.Popen(["rm", os.path.join(self.models_dir, "Arch.tar.xz")])
-    
+        if not os.path.isdir(self.webview_path):
+            subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", self.webview_path])
+            subprocess.check_output(["wget", "-P", os.path.join(self.models_dir), "http://mirror.nyarchlinux.moe/Arch.tar.xz"])
+            subprocess.check_output(["tar", "-Jxf", os.path.join(self.models_dir, "Arch.tar.xz"), "-C", self.models_dir])
+            subprocess.Popen(["rm", os.path.join(self.models_dir, "Arch.tar.xz")])
+        elif not os.path.isdir(self.puppet_path):
+            subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/DesktopPuppet", self.puppet_path])
+
+    def update_puppet(self, button):
+        subprocess.check_output(["bash", "-c", "cd " + self.puppet_path + " && git pull"])
+        self.settings_update()
+
+    def start_desktop_puppet_process(self):
+        if not self.get_setting("start_window_server"):
+            return
+        self.lockfile = os.path.join(self.puppet_path, "src", "nyarchlinux-desktop-puppet.lock") 
+        self._puppet_process = subprocess.Popen(get_spawn_command() + ["python3", os.path.join(self.puppet_path,"src", "main.py")])
+
     def __start_webserver(self):
         folder_path = self.webview_path
         class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
@@ -102,14 +157,28 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
         scale = int(self.get_setting("scale"))/100
         q = urlencode({"model": model, "bg": background_color, "scale": scale})
        
-        self.model_webserver_address = "http://localhost:" + str(httpd.server_address[1])
+        self.model_webserver_address = "http://localhost:" + str(httpd.server_address[1]) 
+        threading.Thread(target=self.update_address).start()
         httpd.serve_forever()
 
+    def update_address(self):
+        try:
+            sleep(3)
+            settings = {"address": self.model_webserver_address, "model": self.get_setting("model"), "scale": self.get_setting("scale"), "extra_w": self.get_setting("extra_w"), "extra_h": self.get_setting("extra_h")}
+            requests.post(f'{self.base_url}/set_settings', json={'settings': settings})
+        except Exception as e:
+            print(e)
+            return
+
     def create_gtk_widget(self) -> Gtk.Widget:
+        threading.Thread(target=self.__start_webserver).start()
+        threading.Thread(target=self.start_desktop_puppet_process).start()
         return Gtk.Box()
 
     def destroy(self, add=None):
         self.httpd.shutdown()
+        if self.lockfile is not None and os.path.isfile(self.lockfile):
+            os.remove(self.lockfile)
 
     def get_expressions(self): 
         if len(self._expressions_raw) > 0:

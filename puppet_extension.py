@@ -1,7 +1,5 @@
-from os.path import isfile
 import threading
 import requests
-import signal
 import os
 import subprocess
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -60,7 +58,8 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
                 "type": "combo",
                 "values": self.get_available_models(),
                 "default": "Arch/arch chan model0.model3.json",
-                "folder": os.path.abspath(self.models_dir)
+                "folder": os.path.abspath(self.models_dir),
+                "refresh": lambda x: self.settings_update(),
             },
             {
                 "key": "update_model",

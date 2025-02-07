@@ -4,7 +4,7 @@ CDLL('libgtk4-layer-shell.so')
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version('Gtk4LayerShell', '1.0')
-
+gi.require_version('WebKit', '6.0')
 from cairo import RectangleInt, Region
 from gi.repository import Gtk, Gdk
 from gi.repository import Gtk4LayerShell as LayerShell

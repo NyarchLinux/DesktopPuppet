@@ -1,5 +1,5 @@
 from .puppet import DesktopPuppet
-from gi.repository import WebKit, Gdk
+from gi.repository import WebKit, Gdk, Gtk,  GLib
 import threading 
 import json
 
@@ -10,14 +10,15 @@ class Live2DDesktopPuppet(DesktopPuppet):
         super().__init__()
         self._wait_js = threading.Event()
         self._expressions_raw = []
+        self.loaded = False
         # Extra settings
         self.address = "http://127.0.0.1:8000"
         self.extra_scale_w = 0.56
         self.extra_scale_h = 1
 
     def get_gtk_widget(self):
-        self.load_webview()
-        return self.webview
+        self.box = Gtk.Box()
+        return self.box
 
     def load_webview(self):
         webview = WebKit.WebView()
@@ -25,17 +26,28 @@ class Live2DDesktopPuppet(DesktopPuppet):
         webview.set_hexpand(True)
         webview.set_vexpand(True)
         webview.set_background_color(Gdk.RGBA())
+        def monitor_loading(wb, event):
+            if event == WebKit.LoadEvent.FINISHED:
+                self.loaded = True
+        webview.connect("load-changed", monitor_loading)
         self.webview = webview
 
     def change_address(self):
-        self.webview.load_uri(self.address + "?bg=transparent")
+        if hasattr(self, "webview"):
+            self.box.remove(self.webview)
+        self.load_webview()
+        self.box.append(self.webview) 
 
     def look(self, x, y):
+        if not self.loaded:
+            return
         script = "model_proxy.focus({x}, {y});"
         script = script.format(x=x, y=y)
         self.webview.evaluate_javascript(script, len(script))
 
     def update_area(self):
+        if not self.loaded:
+            return
         script = """model_proxy.internalModel.width+ "," +  model_proxy.internalModel.height + "," + model_proxy.position._x + "," + model_proxy.position._y + "," + model_proxy.scale._x"""
         def update_position(obj, result):
             global model_x, model_y, model_width, model_height
@@ -59,11 +71,15 @@ class Live2DDesktopPuppet(DesktopPuppet):
         self.webview.evaluate_javascript(script, len(script), callback=update_position)
 
     def wait_emotions(self, object, result):
+        if not self.loaded:
+            return
         value = self.webview.evaluate_javascript_finish(result)
         self._expressions_raw = json.loads(value.to_string())
         self._wait_js.set()
     
     def get_expressions(self) -> list[str]:
+        if not self.loaded:
+            return []
         if len(self._expressions_raw) > 0:
             return self._expressions_raw
         self._expressions_raw = []
@@ -74,10 +90,14 @@ class Live2DDesktopPuppet(DesktopPuppet):
         return self._expressions_raw 
 
     def set_expression(self, expression : str):
+        if not self.loaded:
+            return
         script = "set_expression('{}')".format(expression)
         self.webview.evaluate_javascript(script, len(script))
 
     def set_mouth_amplitude(self, amplitude: float) -> None:    
+        if not self.loaded:
+            return
         script = "set_mouth_y({})".format(amplitude)
         self.webview.evaluate_javascript(script, len(script))
 
@@ -89,4 +109,4 @@ class Live2DDesktopPuppet(DesktopPuppet):
             self.extra_scale_h = settings["extra_scale_h"]
         if "address" in settings:
             self.address = settings["address"]
-            self.change_address()
+            GLib.idle_add(self.change_address)

@@ -77,13 +77,7 @@ class InteractionHandler(BaseHTTPRequestHandler):
             self.end_headers()
         elif self.path == '/set_settings':
             settings = data.get('settings')
-            try:
-                settings = json.loads(settings)
-            except json.JSONDecodeError:
-                self.send_response(400)
-                self.end_headers()
-                self.wfile.write(b"Invalid JSON")
-                return
+            print(settings)
             if settings is None:
                 self.send_response(400)
                 self.end_headers()

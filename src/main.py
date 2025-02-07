@@ -1,4 +1,4 @@
-
+import os
 from ctypes import CDLL
 CDLL('libgtk4-layer-shell.so')
 import gi
@@ -56,13 +56,21 @@ def on_activate(app):
     threading.Thread(target=update_loop, args=(surface,model_manager)).start()
 
 def update_loop(surface, model_manager):
-    while True:
-        x,y,w,h = model_manager.get_updated_area()
-        Gdk.Surface.set_input_region(surface, Region(RectangleInt(x,y,w,h)))
+    last_input_region = (0,0,0,0)
+    while os.path.exists(LOCKFILE):
+        x,y,w,h = model_manager.get_updated_area() 
         model_manager.update_cursor_position()
+        if (x,y,w,h) != last_input_region:
+            Gdk.Surface.set_input_region(surface, Region(RectangleInt(x,y,w,h)))
+            last_input_region = (x,y,w,h)
         time.sleep(0.1)
+    app.quit()
 
 
+# Create lock file
+LOCKFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nyarchlinux-desktop-puppet.lock")
+f = open(LOCKFILE, "w+")
+f.close()
 app = Gtk.Application(application_id='moe.nyarchlinux.desktop-puppet')
 app.connect('activate', on_activate)
 app.run(None)

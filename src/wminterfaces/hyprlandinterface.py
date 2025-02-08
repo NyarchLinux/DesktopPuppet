@@ -14,7 +14,6 @@ class HyprlandInterface(WMInterface):
         x = int(x)
         y = int(y)
         pos = self._get_relative_coords(x, y)
-        print(pos)
         return pos 
     def get_active_monitor_resolution(self) -> tuple[int, int]:
         monitors = subprocess.check_output(["hyprctl", "monitors", "-j"])

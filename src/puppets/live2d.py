@@ -17,7 +17,7 @@ class Live2DDesktopPuppet(DesktopPuppet):
         self.extra_scale_w = 0.56
         self.extra_scale_h = 1
         self.model = None 
-        self.scale = 1 
+        self.scale = 100 
 
     def get_gtk_widget(self):
         self.box = Gtk.Box()

@@ -16,6 +16,14 @@ from puppets import Live2DDesktopPuppet
 from wminterfaces import HyprlandInterface
 from interaction_server import InteractionServer
 
+def changefunc(overlay_type, window):
+    if overlay_type == "background":
+        LayerShell.set_layer(window, LayerShell.Layer.BACKGROUND)
+        print("background")
+    elif overlay_type == "overlay":
+        LayerShell.set_layer(window, LayerShell.Layer.OVERLAY)
+        print("overlay")
+
 def on_activate(app):
     # Create window 
     window = Gtk.Window(application=app)
@@ -48,8 +56,10 @@ def on_activate(app):
 
     # Create puppet
     model_manager = ModelManager(Live2DDesktopPuppet(), HyprlandInterface())
-    server = InteractionServer(model_manager)
+    server = InteractionServer(model_manager, window)
+    server.set_change_func(changefunc, window)
     widget = model_manager.get_gtk_widget()
+    # Get monitor resolution
     dim = model_manager.get_monitor_dimensions() 
     w = dim[0] 
     h = dim[1]

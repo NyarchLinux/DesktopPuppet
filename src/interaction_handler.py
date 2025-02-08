@@ -86,6 +86,16 @@ class InteractionHandler(BaseHTTPRequestHandler):
             self.server.interaction_server.set_settings(settings)
             self.send_response(200)
             self.end_headers()
+        elif self.path == '/overlay':
+            overlay = data.get('overlay')
+            if overlay is None:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'Missing "settings" field')
+                return
+            self.server.interaction_server.change_overlay_type(overlay)
+            self.send_response(200)
+            self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()

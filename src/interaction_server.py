@@ -3,8 +3,10 @@ from interaction_handler import start_interaction_api, stop_interaction_api
 
 
 class InteractionServer:
-    def __init__(self, model_manager: ModelManager) -> None:
+    def __init__(self, model_manager: ModelManager, window) -> None:
         self.model_manager = model_manager
+        self.window = None 
+        self.changefunc = None
         pass
 
     def get_expressions(self) -> list[str]:
@@ -30,3 +32,12 @@ class InteractionServer:
 
     def kill_interaction_server(self) -> None:
         stop_interaction_api(self.httpd)
+
+    def change_overlay_type(self, overlay_type: str) -> None:
+        if self.changefunc is not None and self.window is not None:
+            self.changefunc(overlay_type, self.window)
+    
+    def set_change_func(self, changefunc, window):
+        self.changefunc = changefunc
+        self.window = window
+

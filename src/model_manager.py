@@ -28,3 +28,6 @@ class ModelManager:
 
     def set_settings(self, settings: dict) -> None:
         self.puppet.set_settings(settings)
+
+    def get_monitor_dimensions(self) -> tuple[int, int]:
+        return self.wm_interface.get_active_monitor_resolution()

@@ -49,7 +49,11 @@ def on_activate(app):
     # Create puppet
     model_manager = ModelManager(Live2DDesktopPuppet(), HyprlandInterface())
     server = InteractionServer(model_manager)
-    widget = model_manager.get_gtk_widget() 
+    widget = model_manager.get_gtk_widget()
+    dim = model_manager.get_monitor_dimensions() 
+    w = dim[0] 
+    h = dim[1]
+    window.set_default_size(w, h)
     window.set_child(widget)
 
     server.start_interaction_server()

@@ -17,6 +17,6 @@ class HyprlandInterface(WMInterface):
         monitors = subprocess.check_output(["hyprctl", "monitors", "-j"])
         monitors = json.loads(monitors.decode("utf-8"))
         for monitor in monitors:
-            if monitor["active"]:
+            if monitor["focused"]:
                 return monitor["width"], monitor["height"]
         return 1920, 1080

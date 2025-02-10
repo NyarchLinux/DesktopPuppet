@@ -33,15 +33,37 @@ class DesktopPuppet():
         pass
 
     def get_expressions(self) -> list[str]:
+        """Get the list of possible expressions
+
+        Returns:
+            list[str]: List of expressions 
+        """
         return []
 
     def set_expression(self, expression: str) -> None:
+        """Set the expression
+
+        Args:
+            expression: The expression to set 
+        """
         pass
 
     def set_mouth_amplitude(self, amplitude: float) -> None:
+        """Set the mouth amplitude
+
+        Args:
+            amplitude: The amplitude of the mouth (0-1) 
+        """
         pass
     
     def set_settings(self, settings:dict) -> None:
+        """Set the settings
+
+        Args:
+            settings: The settings to set 
+        """
         for setting in settings:
             self.settings[setting] = settings[setting]
 
+    def get_settings(self):
+        return self.settings

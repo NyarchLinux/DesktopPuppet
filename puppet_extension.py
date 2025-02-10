@@ -117,6 +117,13 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
                 "max": 2,
                 "default": 1,
                 "round-digits": 2
+            },
+            {
+                "key": "automatic_hide",
+                "title": "Automatically hide/show the model",
+                "description": "Automatically bring the model in overlay or background when it is talking",
+                "type": "toggle",
+                "default": False
             }
         ]
     def is_installed(self) -> bool:
@@ -192,9 +199,14 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
 
     def set_expression(self, expression : str):
         requests.post(f'{self.base_url}/expression', json={'expression': expression})
-           
+          
+    def set_overlay(self, overlay : str):
+        requests.post(f'{self.base_url}/set_overlay', json={'expression': overlay})
+
     def speak(self, path: str, tts: TTSHandler, frame_rate: int):
         tts.stop()
+        if self.get_setting("automatic_hide"):
+            self.set_overlay("overlay")
         audio = AudioSegment.from_file(path)
         sample_rate = audio.frame_rate
         audio_data = audio.get_array_of_samples()
@@ -205,6 +217,8 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
         t2.start()
         t1.join()
         t2.join()
+        if self.get_setting("automatic_hide"):
+            self.set_overlay("background")
 
     def _start_animation(self, amplitudes: list[float], frame_rate=10):
         max_amplitude = max(amplitudes)

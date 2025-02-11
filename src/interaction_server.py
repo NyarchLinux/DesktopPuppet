@@ -18,12 +18,6 @@ class InteractionServer:
     def set_mouth_amplitude(self, amplitude: float) -> None:
         return self.model_manager.set_mouth_amplitude(amplitude)
 
-    def set_webserser_url(self, url: str) -> None:
-        pass
-
-    def set_model_path(self, path: str) -> None:
-        pass
-
     def set_settings(self, settings: dict) -> None:
         return self.model_manager.set_settings(settings)
 

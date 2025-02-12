@@ -231,8 +231,3 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
 
     def set_mouth(self, value):
         requests.post(f'{self.base_url}/mouth', json={'amplitude': value})
-
-    def set_model_path(self, path: str):
-        """Sends a model path to the server."""
-        response = requests.post(f'{self.base_url}/model_path', json={'path': path})
-        response.raise_for_status()

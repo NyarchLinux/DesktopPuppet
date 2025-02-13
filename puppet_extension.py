@@ -156,7 +156,7 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
                 path = super().translate_path(path)
                 # Replace the default directory with the specified folder path
                 return os.path.join(folder_path, os.path.relpath(path, os.getcwd()))
-        self.httpd = HTTPServer(('localhost', 0), CustomHTTPRequestHandler)
+        self.httpd = HTTPServer(('127.0.0.1', 0), CustomHTTPRequestHandler)
         httpd = self.httpd
         model = self.get_setting("model")
         background_color = self.get_setting("background-color")

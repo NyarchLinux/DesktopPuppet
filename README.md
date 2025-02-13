@@ -21,7 +21,7 @@ sudo pacman -S gtk4-layer-shell
 
 2. Be sure to have these dependencies available:
 ```bash
-sudo pacman -S python-requests python-gobject
+sudo pacman -S python-requests python-gobject webkitgtk-6.0
 ```
 
 3. Download Nyarch Assistant

@@ -146,6 +146,7 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
         if not self.get_setting("start_window_server"):
             return
         self.lockfile = os.path.join(self.puppet_path, "src", "nyarchlinux-desktop-puppet.lock") 
+        print(os.getenv("XDG_CURRENT_DESKTOP"))
         self._puppet_process = subprocess.Popen(get_spawn_command() + ["python3", os.path.join(self.puppet_path,"src", "main.py")])
 
     def __start_webserver(self):

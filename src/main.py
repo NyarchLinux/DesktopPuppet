@@ -13,7 +13,7 @@ import threading
 import time
 from model_manager import ModelManager
 from puppets import Live2DDesktopPuppet
-from wminterfaces import HyprlandInterface
+from wminterfaces import get_wm_interface
 from interaction_server import InteractionServer
 
 def changefunc(overlay_type, window):
@@ -55,7 +55,7 @@ def on_activate(app):
     Gdk.Surface.set_input_region(surface, Region(RectangleInt(0, 0, 0, 0)))
 
     # Create puppet
-    model_manager = ModelManager(Live2DDesktopPuppet(), HyprlandInterface())
+    model_manager = ModelManager(Live2DDesktopPuppet(), get_wm_interface())
     server = InteractionServer(model_manager, window)
     server.set_change_func(changefunc, window)
     widget = model_manager.get_gtk_widget()

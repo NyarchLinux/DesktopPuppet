@@ -3,7 +3,7 @@ from .hyprlandinterface import HyprlandInterface
 import os
 
 def get_wm_interface() -> WMInterface:
-    if os.getenv("DESKTOP_SESSION") == "hyprland":
+    if os.getenv("XDG_CURRENT_DESKTOP") == "hyprland":
         return HyprlandInterface()
     else:
         return WMInterface()

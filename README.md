@@ -1,6 +1,11 @@
 # DesktopPuppet
 Acchan on the desktop yeahhh.
 
+You can check out our video for installation.
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/exlC3R4hj8w/0.jpg)](https://www.youtube.com/watch?v=exlC3R4hj8w)
+
+
 > [!WARNING]
 > This is still in early alpha. Some features are still missing and only Hyprland is supported for now.
 

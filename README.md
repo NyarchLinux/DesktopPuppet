@@ -15,7 +15,13 @@ You can check out our video for installation.
 - [ ] KDE
 - [ ] Sway
 - [ ] Cosmic
-- [ ] Gnome (* Gnome does not support GTK layer shell so it's going a bit painful)
+- [x] Gnome (* Still requires some work, requires a Shell extension, download instructions at the bottom)
+  - [x] Pointer focusing
+  - [x] Start as always on top
+  - [ ] Get correct monitor resolution
+  - [ ] Set correct window size
+  - [ ] Set it visible on every desktop
+  - [ ] Overlay/Background switch
 
 ## Installation
 1. `gtk4-layer-shell` is required, you can install it on arch using
@@ -33,6 +39,18 @@ sudo pacman -S python-requests python-gobject webkitgtk-6.0
 4. Download our Nyarch Assistant extension
 5. Go in Nyarch Assistant settings, scroll to avatar, click on the download button near desktop pet option, and wait for it to finish, then select it. 
 6. Hope that it doesn't explode
+
+## Gnome Specific Instructions
+Gnome is in an early support stage, a few features are still missing but it's usable.
+It is required to install the [Nyarch Pet Extension](https://github.com/NyarchLinux/NyarchPetGnomeExtension/).
+You can do it in one command:
+```
+git clone https://github.com/NyarchLinux/NyarchPetGnomeExtension/ ~/.local/share/gnome-shell/extensions/nyarchpet@nyarchlinux.moe
+```
+And then login and logout.
+Additional instructions:
+- You can resize the window of the pet using Super + Mouse (left click) to adapt it to the screen
+- Using ALT+Space you can make the window menu appear, from there you can make it visible on every desktop
 
 ## Hyprland Suggestions
 ### Keybinds

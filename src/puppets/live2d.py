@@ -114,6 +114,8 @@ class Live2DDesktopPuppet(DesktopPuppet):
         return self._motions_raw
 
     def get_motions(self):
+        if not self.loaded:
+            return []
         r = []
         groups = self.get_motions_groups()
         for group in groups:

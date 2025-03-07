@@ -33,6 +33,7 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
     def __init__(self, settings, path: str):
         super().__init__(settings, path)
         self._wait_js = threading.Event()
+        self._motions_raw = []
         self._expressions_raw = []
         self.webview_path = os.path.join(path, "avatars", "live2d", "web")
         self.puppet_path = os.path.join(path, "avatars", "live2d", "DesktopPuppet")
@@ -201,6 +202,20 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
     def set_expression(self, expression : str):
         requests.post(f'{self.base_url}/expression', json={'expression': expression})
           
+    def get_motions(self): 
+        if len(self._motions_raw) > 0:
+            return self._motions_raw
+        self._motions_raw = []
+        response = requests.get(f'{self.base_url}/motions')
+        if response.status_code == 200:
+            self._motions_raw = response.json()
+        else:
+            return []
+        return self._motions_raw 
+
+    def do_motion(self, motion : str):
+        requests.post(f'{self.base_url}/motion', json={'motion': motion})
+    
     def set_overlay(self, overlay : str):
         requests.post(f'{self.base_url}/set_overlay', json={'expression': overlay})
 

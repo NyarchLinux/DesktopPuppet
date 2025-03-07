@@ -7,10 +7,13 @@ import json
 
 class Live2DDesktopPuppet(DesktopPuppet):
     _wait_js : threading.Event
+    _wait_js2 : threading.Event
     def __init__(self) -> None:
         super().__init__()
         self._wait_js = threading.Event()
+        self._wait_js2 = threading.Event()
         self._expressions_raw = []
+        self._motions_raw = []
         self.loaded = False
         # Extra settings
         self.address = "http://127.0.0.1:8000"
@@ -99,6 +102,48 @@ class Live2DDesktopPuppet(DesktopPuppet):
         if not self.loaded:
             return
         script = "set_expression('{}')".format(expression)
+        self.webview.evaluate_javascript(script, len(script))
+
+    def get_motions_groups(self):
+        if len(self._motions_raw) > 0:
+            return self._motions_raw
+        self._motions_raw = []
+        script = "get_motions_json()"
+        self.webview.evaluate_javascript(script, len(script), callback=self.wait_motions)
+        self._wait_js2.wait(3)
+        return self._motions_raw
+
+    def get_motions(self):
+        r = []
+        groups = self.get_motions_groups()
+        for group in groups:
+            for motion in group["motions"]:
+                if "name" in motion and motion["name"] is not None:
+                    r.append(motion["name"])
+                else:
+                    f = motion["file"]
+                    r.append(f.split("/")[-1].split(".")[0])
+        return r
+
+    def get_motion_file(self, motion: str):
+        for group in self.get_motions_groups():
+            if motion == group["groupName"]:
+                return motion
+            for motion2 in group["motions"]:
+                if motion == motion2["name"] or motion == motion2["file"].split("/")[-1].split(".")[0]:
+                    return motion2["file"]
+        return None
+
+    def wait_motions(self, object, result):
+        value = self.webview.evaluate_javascript_finish(result)
+        self._motions_raw = json.loads(value.to_string())
+        self._wait_js2.set()
+
+    def do_motion(self, motion : str):
+        motions = self.get_motion_file(motion)
+        if motions is None:
+            return
+        script = "do_motion('{}')".format(motions)
         self.webview.evaluate_javascript(script, len(script))
 
     def set_mouth_amplitude(self, amplitude: float) -> None:    

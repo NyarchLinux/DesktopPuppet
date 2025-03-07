@@ -27,6 +27,28 @@ def set_expression(base_url, expression):
         print(f"Error setting expression: {err}")
         sys.exit(1)
 
+def get_motions(base_url):
+    url = f"{base_url}/motions"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        expressions = response.json()
+        print(json.dumps(expressions, indent=2))
+    except requests.RequestException as err:
+        print(f"Error getting motions: {err}")
+        sys.exit(1)
+
+def set_motion(base_url, expression):
+    url = f"{base_url}/motion"
+    data = {"motion": expression}
+    try:
+        response = requests.post(url, json=data)
+        response.raise_for_status()
+        print("Motion set successfully.")
+    except requests.RequestException as err:
+        print(f"Error setting expression: {err}")
+        sys.exit(1)
+
 def set_mouth_amplitude(base_url, amplitude):
     url = f"{base_url}/mouth"
     data = {"amplitude": amplitude}
@@ -108,6 +130,12 @@ def main():
     expr_parser = subparsers.add_parser("set-expression", help="Set an expression.")
     expr_parser.add_argument("expression", help="Expression to set.")
 
+    # Command: get-motions
+    subparsers.add_parser("get-motions", help="Retrieve motions from the API.")
+
+    # Command: set-expression
+    expr_parser = subparsers.add_parser("set-motion", help="Set a motion.")
+    expr_parser.add_argument("motion", help="Motion to set.")
     # Command: set-mouth
     mouth_parser = subparsers.add_parser("set-mouth", help="Set mouth amplitude.")
     mouth_parser.add_argument("amplitude", type=float, help="Mouth amplitude (e.g. 0.5)")
@@ -143,6 +171,10 @@ def main():
         get_expressions(base_url)
     elif args.command == "set-expression":
         set_expression(base_url, args.expression)
+    elif args.command == "get-motions":
+        get_motions(base_url)
+    elif args.command == "set-motion":
+        set_motion(base_url, args.motion)
     elif args.command == "set-mouth":
         set_mouth_amplitude(base_url, args.amplitude)
     elif args.command == "set-webserver-url":

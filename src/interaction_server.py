@@ -15,6 +15,12 @@ class InteractionServer:
     def set_expression(self, expression: str) -> None:
         return self.model_manager.set_expression(expression)
 
+    def get_motions(self) -> list[str]:
+        return self.model_manager.get_motions()
+
+    def set_motion(self, motion: str) -> None:
+        return self.model_manager.do_motion(motion)
+    
     def set_mouth_amplitude(self, amplitude: float) -> None:
         return self.model_manager.set_mouth_amplitude(amplitude)
 

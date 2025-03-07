@@ -48,6 +48,22 @@ class DesktopPuppet():
         """
         pass
 
+    def get_motions(self) -> list[str]:
+        """Get the list of possible motions
+
+        Returns:
+            list[str]: List of motions 
+        """
+        return []
+
+    def do_motion(self, motion: str) -> None:
+        """Set the motion
+
+        Args:
+            motion: The motion to set 
+        """
+        pass 
+
     def set_mouth_amplitude(self, amplitude: float) -> None:
         """Set the mouth amplitude
 

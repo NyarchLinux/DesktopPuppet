@@ -14,6 +14,15 @@ class InteractionHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(response)))
             self.end_headers()
             self.wfile.write(response)
+        elif self.path == '/motions':
+            motions = self.server.interaction_server.get_motions()
+            response = json.dumps(motions).encode('utf-8')
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response)))
+            self.end_headers()
+            self.wfile.write(response)
         else:
             self.send_response(404)
             self.end_headers()
@@ -43,6 +52,18 @@ class InteractionHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
 
+        if self.path == '/motion':
+            expr = data.get('motion')
+            print("Motion", expr)
+            if expr is None:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'Missing "motion" field')
+                return
+            self.server.interaction_server.set_motion(expr)
+            self.send_response(200)
+            self.end_headers()
+        
         elif self.path == '/mouth':
             amplitude = data.get('amplitude')
             if amplitude is None:

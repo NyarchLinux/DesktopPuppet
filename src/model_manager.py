@@ -17,6 +17,12 @@ class ModelManager:
         x, y = self.wm_interface.get_cursor_position()
         self.puppet.look(x, y)
 
+    def get_motions(self) -> list[str]:
+        return self.puppet.get_motions()
+
+    def do_motion(self, motion: str) -> None:
+        self.puppet.do_motion(motion)
+
     def get_expressions(self):
         return self.puppet.get_expressions()
 

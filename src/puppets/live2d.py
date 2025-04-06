@@ -34,7 +34,12 @@ class Live2DDesktopPuppet(DesktopPuppet):
         webview.load_uri(urljoin(self.address, f"?{q}"))
         webview.set_hexpand(True)
         webview.set_vexpand(True)
-        webview.set_background_color(Gdk.RGBA())
+        color = Gdk.RGBA()
+        color.red = 0
+        color.green = 0
+        color.blue = 0
+        color.alpha = 0
+        webview.set_background_color(color)
         def monitor_loading(wb, event):
             if event == WebKit.LoadEvent.FINISHED:
                 self.loaded = True

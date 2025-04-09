@@ -6,7 +6,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pydub import AudioSegment
 from time import sleep
 from urllib.parse import urlencode, urljoin
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 from livepng import LivePNG
 from .utility.system import get_spawn_command
 
@@ -147,7 +147,6 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
         if not self.get_setting("start_window_server"):
             return
         self.lockfile = os.path.join(self.puppet_path, "src", "nyarchlinux-desktop-puppet.lock") 
-        print(os.getenv("XDG_CURRENT_DESKTOP"))
         self._puppet_process = subprocess.Popen(get_spawn_command() + ["python3", os.path.join(self.puppet_path,"src", "main.py")])
 
     def __start_webserver(self):
@@ -178,10 +177,31 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
             print(e)
             return
 
+    def restart_puppet(self):
+        if self.lockfile is not None and os.path.isfile(self.lockfile):
+            os.remove(self.lockfile)
+        sleep(2)
+        self.start_desktop_puppet_process()
+        GLib.timeout_add(2000, self.update_address)
+
     def create_gtk_widget(self) -> Gtk.Widget:
         threading.Thread(target=self.__start_webserver).start()
         threading.Thread(target=self.start_desktop_puppet_process).start()
-        return Gtk.Box()
+        box = Gtk.Box()
+        box.set_hexpand(True)
+        box.set_vexpand(True)
+        reload_button = Gtk.Button(hexpand=True, vexpand=True)
+        label = Gtk.Label(label="Reload puppet")
+        reload_button.set_child(label)
+        reload_button.connect("clicked", lambda x : threading.Thread(target=self.update_address).start())
+        box.append(reload_button)
+
+        restart_button = Gtk.Button(hexpand=True, vexpand=True)
+        label = Gtk.Label(label="Restart puppet")
+        restart_button.set_child(label)
+        restart_button.connect("clicked", lambda x : threading.Thread(target=self.restart_puppet).start())
+        box.append(restart_button)
+        return box
 
     def destroy(self, add=None):
         self.httpd.shutdown()

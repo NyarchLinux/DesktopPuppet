@@ -13,7 +13,7 @@ class GnomeInterface (WMInterface):
         script = "kdotool getmouselocation"
         mouse_pos = subprocess.check_output(["bash","-c", script]) 
         string = mouse_pos.decode("utf-8")
-        match = re.search(r'X:(\d+)\s+y:(\d+)', string)
+        match = re.search(r'x:(\d+)\s+y:(\d+)', string)
         if match is None:
             return 0,0
         x = int(match.group(1))

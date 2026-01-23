@@ -3,7 +3,7 @@ import json
 import re
 from .wminterface import WMInterface
 
-class GnomeInterface (WMInterface):
+class KDEInterface (WMInterface):
     def __init__(self) -> None:
         super().__init__()
         self.x = 0

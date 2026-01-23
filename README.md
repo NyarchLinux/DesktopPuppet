@@ -12,7 +12,9 @@ You can check out our video for installation.
 ## Supported Desktops
 
 - [x] Hyprland
-- [ ] KDE
+- [x] KDE
+    - [x] Pointer focusing 
+    - [ ] Get correct monitor resolution
 - [ ] Sway
 - [ ] Cosmic
 - [x] Gnome (* Still requires some work, requires a Shell extension, download instructions at the bottom)
@@ -51,6 +53,14 @@ And then login and logout.
 Additional instructions:
 - You can resize the window of the pet using Super + Mouse (left click) to adapt it to the screen
 - Using ALT+Space you can make the window menu appear, from there you can make it visible on every desktop
+
+## KDE Specific Instructions
+
+[Kdotool](https://github.com/jinliu/kdotool) is required, on arch you can install it with:
+```bash
+yay -S kdotool-git
+```
+
 
 ## Hyprland Suggestions
 ### Keybinds

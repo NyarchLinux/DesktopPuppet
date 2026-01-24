@@ -4,6 +4,10 @@ import json
 import os
 import sys
 import requests
+import subprocess
+import threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from urllib.parse import urlencode
 
 def get_expressions(base_url):
     url = f"{base_url}/expressions"
@@ -110,6 +114,58 @@ def set_overlay(base_url, overlay):
         print(f"Error updating overlay: {err}")
         sys.exit(1)
 
+def get_available_models(models_dir):
+    file_list = []
+    for root, _, files in os.walk(models_dir):
+        for file in files:
+            if file.endswith('.model3.json') or file.endswith('.model.json'):
+                file_name = file.rstrip('.model3.json').rstrip('.model.json')
+                relative_path = os.path.relpath(os.path.join(root, file), models_dir)
+                file_list.append((file_name, relative_path))
+    return file_list
+
+def ensure_viewer_installed(viewer_path, models_dir):
+    if not os.path.isdir(viewer_path):
+        print("Cloning live2d-lipsync-viewer...")
+        subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", viewer_path])
+        print("Downloading Arch model...")
+        subprocess.check_output(["wget", "-P", models_dir, "http://mirror.nyarchlinux.moe/Arch.tar.xz"])
+        subprocess.check_output(["tar", "-Jxf", os.path.join(models_dir, "Arch.tar.xz"), "-C", models_dir])
+        subprocess.Popen(["rm", os.path.join(models_dir, "Arch.tar.xz")])
+        print("Viewer installed successfully.")
+    else:
+        print("Viewer already installed.")
+
+def start_viewer_webserver(viewer_path, model, scale, bg, extra_w, extra_h):
+    folder_path = viewer_path
+    class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
+        def translate_path(self, path):
+            path = super().translate_path(path)
+            return os.path.join(folder_path, os.path.relpath(path, os.getcwd()))
+    
+    httpd = HTTPServer(('127.0.0.1', 0), CustomHTTPRequestHandler)
+    port = httpd.server_address[1]
+    viewer_url = f"http://localhost:{port}?{urlencode({'model': model, 'bg': bg, 'scale': scale})}"
+    
+    def run_server():
+        httpd.serve_forever()
+    
+    thread = threading.Thread(target=run_server, daemon=True)
+    thread.start()
+    
+    print(f"Viewer webserver started on port {port}")
+    return httpd, viewer_url
+
+def start_puppet():
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    lockfile = os.path.join(project_root, "src", "nyarchlinux-desktop-puppet.lock")
+    if os.path.isfile(lockfile):
+        os.remove(lockfile)
+    
+    print("Starting DesktopPuppet...")
+    process = subprocess.Popen(["python3", os.path.join(project_root, "src", "main.py")])
+    return process, lockfile
+
 def main():
     parser = argparse.ArgumentParser(
         description="CLI tool to interface with the Interaction API."
@@ -162,6 +218,14 @@ def main():
     overlay_parser = subparsers.add_parser("set-overlay", help="Change overlay type.")
     overlay_parser.add_argument("overlay", help="Overlay type to set.")
 
+    # Command: start
+    start_parser = subparsers.add_parser("start", help="Start the desktop puppet.")
+    start_parser.add_argument("--model", default="Arch/arch chan model0.model3.json", help="Live2D model to use.")
+    start_parser.add_argument("--scale", type=float, default=1.0, help="Zoom scale (default: 1.0).")
+    start_parser.add_argument("--extra-w", type=float, default=0.56, help="Extra scaling width (default: 0.56).")
+    start_parser.add_argument("--extra-h", type=float, default=1.0, help="Extra scaling height (default: 1.0).")
+    start_parser.add_argument("--bg", default="transparent", help="Background color (default: transparent).")
+
     args = parser.parse_args()
 
     # Construct the base URL for the API.
@@ -191,6 +255,42 @@ def main():
         set_settings(base_url, settings_str)
     elif args.command == "set-overlay":
         set_overlay(base_url, args.overlay)
+    elif args.command == "start":
+        webview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "avatars", "live2d", "web")
+        models_dir = os.path.join(webview_path, "models")
+        
+        ensure_viewer_installed(webview_path, models_dir)
+        
+        httpd, viewer_url = start_viewer_webserver(webview_path, args.model, args.scale, args.bg, args.extra_w, args.extra_h)
+        
+        puppet_process, lockfile = start_puppet()
+        
+        import time
+        try:
+            while True:
+                try:
+                    settings = {
+                        "address": viewer_url,
+                        "model": args.model,
+                        "scale": args.scale * 100,
+                        "extra_w": args.extra_w,
+                        "extra_h": args.extra_h
+                    }
+                    requests.post(f'{base_url}/set_settings', json={'settings': settings})
+                    print("Settings updated successfully.")
+                    break
+                except requests.RequestException:
+                    print("Waiting for puppet to start...")
+                    time.sleep(1)
+            
+            print("DesktopPuppet is running. Press Ctrl+C to stop.")
+            puppet_process.wait()
+        except KeyboardInterrupt:
+            print("\nStopping...")
+            puppet_process.terminate()
+            httpd.shutdown()
+            if os.path.isfile(lockfile):
+                os.remove(lockfile)
     else:
         parser.print_help()
 

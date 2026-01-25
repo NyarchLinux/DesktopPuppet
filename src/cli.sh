@@ -166,6 +166,37 @@ def start_puppet():
     process = subprocess.Popen(["python3", os.path.join(project_root, "src", "main.py")])
     return process, lockfile
 
+def stop_puppet():
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    lockfile = os.path.join(project_root, "src", "nyarchlinux-desktop-puppet.lock")
+    
+    if not os.path.isfile(lockfile):
+        print("No puppet process is running (lockfile not found).")
+        return False
+    
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "python3.*main.py"],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0 and result.stdout.strip():
+            pids = result.stdout.strip().split('\n')
+            for pid in pids:
+                try:
+                    subprocess.run(["kill", pid], check=True)
+                    print(f"Terminated process {pid}")
+                except subprocess.CalledProcessError:
+                    pass
+        
+        os.remove(lockfile)
+        print("DesktopPuppet stopped successfully.")
+        return True
+    except Exception as e:
+        print(f"Error stopping puppet: {e}")
+        return False
+
 def main():
     parser = argparse.ArgumentParser(
         description="CLI tool to interface with the Interaction API."
@@ -226,6 +257,9 @@ def main():
     start_parser.add_argument("--extra-h", type=float, default=1.0, help="Extra scaling height (default: 1.0).")
     start_parser.add_argument("--bg", default="transparent", help="Background color (default: transparent).")
 
+    # Command: stop
+    subparsers.add_parser("stop", help="Stop the desktop puppet.")
+
     args = parser.parse_args()
 
     # Construct the base URL for the API.
@@ -255,6 +289,8 @@ def main():
         set_settings(base_url, settings_str)
     elif args.command == "set-overlay":
         set_overlay(base_url, args.overlay)
+    elif args.command == "stop":
+        stop_puppet()
     elif args.command == "start":
         webview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "avatars", "live2d", "web")
         models_dir = os.path.join(webview_path, "models")

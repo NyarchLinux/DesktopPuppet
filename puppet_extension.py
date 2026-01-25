@@ -204,7 +204,8 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
         return box
 
     def destroy(self, add=None):
-        self.httpd.shutdown()
+        if hasattr(self, 'httpd'):
+            self.httpd.shutdown()
         if self.lockfile is not None and os.path.isfile(self.lockfile):
             os.remove(self.lockfile)
 

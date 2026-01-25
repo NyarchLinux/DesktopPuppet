@@ -15,6 +15,7 @@ You can check out our video for installation.
 - [x] KDE
     - [x] Pointer focusing 
     - [ ] Get correct monitor resolution
+    - [ ] Set correct window size
 - [ ] Sway
 - [ ] Cosmic
 - [x] Gnome (* Still requires some work, requires a Shell extension, download instructions at the bottom)
@@ -34,7 +35,7 @@ sudo pacman -S gtk4-layer-shell
 
 2. Be sure to have these dependencies available:
 ```bash
-sudo pacman -S python-requests python-gobject webkitgtk-6.0
+sudo pacman -S python-requests python-gobject webkitgtk-6.0 libadwaita python-gobject
 ```
 
 3. Download Nyarch Assistant
@@ -80,3 +81,17 @@ bind = SUPER, F9, sendshortcut, Control_L, k, title:nyarchassistant
 `SUPER+F9` -> Stop TTS from playing
 
 `SUPER+F10` -> Start recording with microphone
+
+## GUI Control
+
+A GTK4 + Libadwaita GUI is available to control the desktop puppet with a modern web-designed interface.
+
+Run the GUI with:
+```bash
+./run_gui.sh
+```
+
+Or directly:
+```bash
+python3 src/gui_controller.py
+```

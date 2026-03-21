@@ -7,7 +7,7 @@ You can check out our video for installation.
 
 
 > [!WARNING]
-> This is still in early alpha. Some features are still missing and only Hyprland is supported for now.
+> This is still in beta. Some features are still missing and only Hyprland is fully supported for now. KDE and Gnome are in a beta stage
 
 ## Supported Desktops
 

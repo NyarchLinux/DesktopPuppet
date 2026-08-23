@@ -27,18 +27,22 @@ def changefunc(overlay_type, window):
         print("overlay")
 
 def on_activate(app):
-    # Create window 
+    # Configure the complete surface before mapping it. Presenting the window
+    # earlier lets GTK draw its default opaque background for the first frame
+    # and means the initial 1x1 default size may be kept by the compositor.
     window = Gtk.Window(application=app, title="nyarchpet")
-    window.set_default_size(1, 1)
     LayerShell.init_for_window(window)
     LayerShell.set_layer(window, LayerShell.Layer.OVERLAY)
-    window.present()
-    
-    # Apply css for transparency
+    window.set_decorated(False)
+
+    # A user GTK stylesheet can contain a global `window` background at
+    # GTK_STYLE_PROVIDER_PRIORITY_USER. Transparency is functional here, not
+    # cosmetic, so install this narrowly-scoped rule just above that priority.
     css = Gtk.CssProvider()
     css.load_from_string(
         """
-        .main-window {
+        window.main-window {
+            background: transparent;
             background-color: transparent;
         }
         """
@@ -46,15 +50,9 @@ def on_activate(app):
     Gtk.StyleContext.add_provider_for_display(
         window.get_display(),
         css,
-        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-    ) 
+        Gtk.STYLE_PROVIDER_PRIORITY_USER + 1
+    )
     window.add_css_class("main-window")
-    
-    # Remove input area
-    surface = window.get_surface()
-    if surface is None:
-        return
-    Gdk.Surface.set_input_region(surface, Region(RectangleInt(0, 0, 0, 0)))
 
     # Create puppet
     model_manager = ModelManager(Live2DDesktopPuppet(), get_wm_interface())
@@ -67,7 +65,14 @@ def on_activate(app):
     h = dim[1]
     window.set_default_size(w, h)
     window.set_child(widget)
-    window.set_decorated(False)
+    window.present()
+
+    # Remove input area until the model reports its visible bounds.
+    surface = window.get_surface()
+    if surface is None:
+        return
+    Gdk.Surface.set_input_region(surface, Region(RectangleInt(0, 0, 0, 0)))
+
     server.start_interaction_server()
     threading.Thread(target=update_loop, args=(surface,model_manager)).start()
 

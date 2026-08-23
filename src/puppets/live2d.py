@@ -28,18 +28,19 @@ class Live2DDesktopPuppet(DesktopPuppet):
 
     def load_webview(self):
         webview = WebKit.WebView()
-        scale = int(self.scale)/100
-        q = urlencode({"model": self.model, "bg": "transparent", "scale": scale})
-        print(q)
-        webview.load_uri(urljoin(self.address, f"?{q}"))
-        webview.set_hexpand(True)
-        webview.set_vexpand(True)
         color = Gdk.RGBA()
         color.red = 0
         color.green = 0
         color.blue = 0
         color.alpha = 0
         webview.set_background_color(color)
+
+        scale = int(self.scale)/100
+        q = urlencode({"model": self.model, "bg": "transparent", "scale": scale})
+        print(q)
+        webview.load_uri(urljoin(self.address, f"?{q}"))
+        webview.set_hexpand(True)
+        webview.set_vexpand(True)
         def monitor_loading(wb, event):
             if event == WebKit.LoadEvent.FINISHED:
                 self.loaded = True

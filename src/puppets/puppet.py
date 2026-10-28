@@ -25,6 +25,9 @@ class DesktopPuppet():
         Args:
             x (): x coordinate on the monitor 
             y (): y coordinate on the monitor 
+
+        Returns:
+            False if the puppet could not use the position yet, so it is sent again
         """
         pass
 

@@ -13,6 +13,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Gdk, Adw, GLib, Gio
 
 import requests
+from viewer_install import ensure_viewer_installed as install_viewer, viewer_path_for_project
 
 
 class PuppetController:
@@ -110,13 +111,14 @@ class PuppetLauncher:
         self.process = None
         self.httpd = None
         self.lockfile = None
+        self.owns_lockfile = False
         self.webview_path = None
         self.models_dir = None
         self.log_file = None
 
         # Set paths
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.webview_path = os.path.join(project_root, "avatars", "live2d", "web")
+        self.webview_path = viewer_path_for_project(project_root)
         self.models_dir = os.path.join(self.webview_path, "models")
         self.main_py = os.path.join(project_root, "src", "main.py")
         self.cli_sh = os.path.join(project_root, "src", "cli.sh")
@@ -138,10 +140,7 @@ class PuppetLauncher:
 
     def ensure_viewer_installed(self):
         """Ensure the Live2D viewer is installed."""
-        viewer_path = self.webview_path
-        if not os.path.isdir(viewer_path):
-            return False, "Viewer directory not found"
-        return True, "Viewer installed"
+        return install_viewer(self.webview_path)
 
     def start_viewer_webserver(self, model, scale, bg, extra_w, extra_h):
         """Start the viewer webserver."""
@@ -166,11 +165,11 @@ class PuppetLauncher:
         viewer_url = f"http://localhost:{port}?{urlencode({'model': model, 'bg': bg, 'scale': scale})}"
         return viewer_url
 
-    def start_puppet(self):
-        """Start the puppet main process."""
-        # Remove lockfile if exists
-        if os.path.isfile(self.lockfile):
-            os.remove(self.lockfile)
+    def start_puppet(self, monitor=None):
+        """Start the puppet main process on the given monitor connector, or the focused one."""
+        # Only a lock this launch creates may be removed on stop. Another
+        # puppet, such as one started by the assistant, shares this path.
+        self.owns_lockfile = not os.path.isfile(self.lockfile)
 
         # Get the src directory for proper module imports
         src_dir = os.path.dirname(self.main_py)
@@ -184,8 +183,11 @@ class PuppetLauncher:
         env = os.environ.copy()
         env['PYTHONPATH'] = src_dir
 
+        command = ["python3", self.main_py]
+        if monitor:
+            command += ["--monitor", monitor]
         self.process = subprocess.Popen(
-            ["python", self.main_py],
+            command,
             stdout=self.log_file,
             stderr=subprocess.STDOUT,
             env=env,
@@ -195,35 +197,28 @@ class PuppetLauncher:
 
     def stop_puppet(self):
         """Stop the puppet process."""
-        if self.process:
+        if self.process and self.process.poll() is None:
             self.process.terminate()
             try:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.process.kill()
-            self.process = None
+        self.process = None
 
         if self.httpd:
             self.httpd.shutdown()
             self.httpd = None
 
-        if os.path.isfile(self.lockfile):
+        if self.owns_lockfile and os.path.isfile(self.lockfile):
             os.remove(self.lockfile)
+        self.owns_lockfile = False
 
-        # Close and clean up log file
         if self.log_file:
             try:
                 self.log_file.close()
             except Exception:
                 pass
             self.log_file = None
-
-        log_path = self.get_log_path()
-        if os.path.exists(log_path):
-            try:
-                os.remove(log_path)
-            except Exception:
-                pass
 
     def is_running(self):
         """Check if puppet process is running."""
@@ -256,9 +251,12 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
         self.current_model_path = None
         self._monitor_thread = None
         self._stop_monitor = False
+        self._viewer_download_thread = None
 
         self._setup_ui()
         self._load_models()
+        if not os.path.isdir(self.launcher.webview_path):
+            self._download_viewer()
 
     def _setup_ui(self):
         """Setup the user interface."""
@@ -354,6 +352,18 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
         self.bg_row = bg_row
         params_group.add(bg_row)
 
+        # Monitor
+        self.monitor_row = Adw.ComboRow(
+            title="Monitor",
+            subtitle="Monitor to show the puppet on, applied at launch"
+        )
+        self._monitor_connectors = [None]
+        self.monitor_row.set_model(Gtk.StringList.new(["Automatic (focused monitor)"]))
+        params_group.add(self.monitor_row)
+        self._monitors = self.get_display().get_monitors()
+        self._monitors.connect("items-changed", lambda *args: self._load_monitors())
+        self._load_monitors()
+
         # ===== Launch Control Section =====
         launch_group = Adw.PreferencesGroup(title="Puppet Control")
         content_box.append(launch_group)
@@ -428,6 +438,64 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
         # Store model paths
         self._model_paths = {m[0]: m[1] for m in models}
 
+    def _load_monitors(self):
+        """Fill the monitor list, keeping the current choice if it is still connected."""
+        previous = self._selected_monitor()
+        connectors = [None]
+        labels = ["Automatic (focused monitor)"]
+        for i in range(self._monitors.get_n_items()):
+            monitor = self._monitors.get_item(i)
+            connector = monitor.get_connector()
+            if not connector:
+                continue
+            geometry = monitor.get_geometry()
+            name = (monitor.get_model() or "").strip() or connector
+            if connector not in name:
+                name = f"{name} ({connector})"
+            connectors.append(connector)
+            labels.append(f"{name}, {geometry.width}×{geometry.height}")
+
+        self._monitor_connectors = connectors
+        self.monitor_row.set_model(Gtk.StringList.new(labels))
+        self.monitor_row.set_selected(connectors.index(previous) if previous in connectors else 0)
+
+    def _selected_monitor(self):
+        """Connector of the chosen monitor, or None for the focused monitor."""
+        index = self.monitor_row.get_selected()
+        if 0 <= index < len(self._monitor_connectors):
+            return self._monitor_connectors[index]
+        return None
+
+    def _download_viewer(self):
+        """Download the viewer without blocking the GTK event loop."""
+        if self._viewer_download_thread and self._viewer_download_thread.is_alive():
+            return
+
+        self.launch_button.set_label("Downloading viewer...")
+        self.launch_button.set_sensitive(False)
+        self._show_status("Downloading Live2D viewer and Arch model...", "progress")
+
+        def download():
+            try:
+                self.launcher.ensure_viewer_installed()
+            except (OSError, subprocess.CalledProcessError) as error:
+                GLib.idle_add(self._viewer_download_finished, error)
+            else:
+                GLib.idle_add(self._viewer_download_finished, None)
+
+        self._viewer_download_thread = threading.Thread(target=download, daemon=True)
+        self._viewer_download_thread.start()
+
+    def _viewer_download_finished(self, error):
+        self.launch_button.set_label("Launch Puppet")
+        self.launch_button.set_sensitive(True)
+        if error is not None:
+            self._show_status(f"Failed to download viewer: {error}", "error")
+        else:
+            self._load_models()
+            self._show_status("Viewer installed. Select a model to launch.", "success")
+        return False
+
     def _on_browse_folder(self, widget):
         """Handle folder browse button."""
         import platform
@@ -460,10 +528,8 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
 
     def _launch_puppet(self):
         """Launch the puppet."""
-        # Check viewer installation
-        installed, message = self.launcher.ensure_viewer_installed()
-        if not installed:
-            self._show_status(message, "error")
+        if not os.path.isdir(self.launcher.webview_path):
+            self._download_viewer()
             return
 
         # Get selected model
@@ -503,7 +569,7 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
 
         # Start puppet process
         try:
-            self.launcher.start_puppet()
+            self.launcher.start_puppet(self._selected_monitor())
         except Exception as e:
             self._show_status(f"Failed to start puppet: {e}", "error")
             self.launch_button.set_label("Launch Puppet")
@@ -559,7 +625,12 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
             if self._stop_monitor:
                 return
 
-            # Process died
+            # GTK exits 0 without activating when another puppet already owns
+            # the application id. That puppet still serves the interaction API.
+            if self.controller.is_connected():
+                GLib.idle_add(self._on_already_running)
+                return
+
             if self.launcher.is_running() is False:
                 GLib.idle_add(self._on_process_died)
 
@@ -594,26 +665,40 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
         self._load_motions()
         return False
 
+    def _on_already_running(self):
+        """Attach to a puppet that was already running.
+
+        Do not call _stop_puppet(): that shuts down the viewer webserver
+        this launch just started and clears the model the controls need.
+        """
+        self.launcher.flush_log()
+        self._show_status("A puppet is already running. Connected to it.", "success")
+        self._on_connected()
+        return False
+
+    def _read_puppet_log(self):
+        """Return the last lines of the puppet log, if any."""
+        log_path = self.launcher.get_log_path()
+        try:
+            if not os.path.exists(log_path):
+                return ""
+            with open(log_path, 'r') as f:
+                lines = f.read().strip().split('\n')
+            lines = [line for line in lines if line]
+            return ' '.join(lines[-5:])
+        except OSError:
+            return ""
+
     def _on_process_died(self):
         """Handle puppet process death."""
-        # Flush log before stopping
+        # Read the log before stop_puppet() closes and drops the handle.
         self.launcher.flush_log()
+        log_excerpt = self._read_puppet_log()
         self._stop_puppet()
 
-        # Try to read log file for error details
-        log_path = self.launcher.get_log_path()
-        error_msg = "Puppet process died unexpectedly"
-        try:
-            if os.path.exists(log_path):
-                with open(log_path, 'r') as f:
-                    log_content = f.read()
-                    if log_content:
-                        # Show last few lines of log
-                        lines = log_content.strip().split('\n')
-                        last_lines = lines[-5:] if len(lines) > 5 else lines
-                        error_msg = f"Puppet died. Log: {' '.join(last_lines)}"
-        except Exception:
-            pass
+        error_msg = "Puppet process ended unexpectedly"
+        if log_excerpt:
+            error_msg = f"Puppet ended. Log: {log_excerpt}"
 
         self._show_status(error_msg, "error")
 
@@ -691,7 +776,7 @@ class DesktopPuppetWindow(Adw.ApplicationWindow):
         self.status_bar.set_revealed(True)
 
         # Auto-hide after 5 seconds for non-errors
-        if message_type != "error":
+        if message_type not in ("error", "progress"):
             GLib.timeout_add_seconds(5, lambda: self.status_bar.set_revealed(False))
 
     def close_request(self):

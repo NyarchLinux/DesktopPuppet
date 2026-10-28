@@ -73,6 +73,15 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
 
             },
             {
+                "key": "install_gnome_extension",
+                "title": "GNOME Shell extension",
+                "description": "Required on GNOME for pointer tracking, monitor size, and overlay mode",
+                "type": "button",
+                "default": "",
+                "label": "Update" if self._gnome_extension_installed() else "Install gnome extension",
+                "callback": self.install_gnome_extension,
+            },
+            {
                 "key": "start_window_server",
                 "title": "Automatically run puppet",
                 "description": "Automatically run puppet window server",
@@ -133,14 +142,33 @@ class Live2DPuppetAvatarHandler(AvatarHandler):
     def install(self):
         if not os.path.isdir(self.webview_path):
             subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", self.webview_path])
-            subprocess.check_output(["wget", "-P", os.path.join(self.models_dir), "http://mirror.nyarchlinux.moe/Arch.tar.xz"])
-            subprocess.check_output(["tar", "-Jxf", os.path.join(self.models_dir, "Arch.tar.xz"), "-C", self.models_dir])
-            subprocess.Popen(["rm", os.path.join(self.models_dir, "Arch.tar.xz")])
         elif not os.path.isdir(self.puppet_path):
             subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/DesktopPuppet", self.puppet_path])
 
     def update_puppet(self, button):
         subprocess.check_output(["bash", "-c", "cd " + self.puppet_path + " && git pull"])
+        self.settings_update()
+
+    def _gnome_extension_path(self):
+        data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+        return os.path.join(data_home, "gnome-shell", "extensions", "nyarchpet@nyarchlinux.moe")
+
+    def _gnome_extension_installed(self):
+        return os.path.isdir(self._gnome_extension_path())
+
+    def install_gnome_extension(self, button):
+        uuid = "nyarchpet@nyarchlinux.moe"
+        extension_path = self._gnome_extension_path()
+        if not os.path.isdir(extension_path):
+            os.makedirs(os.path.dirname(extension_path), exist_ok=True)
+            subprocess.check_output([
+                "git", "clone",
+                "https://github.com/NyarchLinux/NyarchPetGnomeExtension/",
+                extension_path,
+            ])
+        else:
+            subprocess.check_output(["git", "-C", extension_path, "pull"])
+        subprocess.run(["gnome-extensions", "enable", uuid], check=False)
         self.settings_update()
 
     def start_desktop_puppet_process(self):

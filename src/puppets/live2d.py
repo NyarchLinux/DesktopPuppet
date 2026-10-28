@@ -55,7 +55,7 @@ class Live2DDesktopPuppet(DesktopPuppet):
 
     def look(self, x, y):
         if not self.loaded:
-            return
+            return False
         script = "model_proxy.focus({x}, {y});"
         script = script.format(x=x, y=y)
         self.webview.evaluate_javascript(script, len(script))
